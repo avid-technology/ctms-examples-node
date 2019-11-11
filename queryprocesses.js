@@ -69,7 +69,7 @@ var queryProcesses = function(options, urlProcessQuery, rawSearchExpression) {
         , 'headers' : {
             'Content-Type'  : 'application/json'
             , 'Accept'      : 'application/json'
-            , 'Cookie'      : options.headers['Cookie']
+            , 'Authorization': options.headers.Authorization
         }
         , 'agent'   : options.agent
     };
@@ -123,15 +123,14 @@ var queryProcesses = function(options, urlProcessQuery, rawSearchExpression) {
     return deferred.promise;
 };
 
-if (8 !== process.argv.length || "'" === process.argv[7] || "'" !== process.argv[7][0] || "'" !== process.argv[7][process.argv[7].length - 1]) {
-    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + " <apidomain> <orchestrationserviceversion> <realm> <username> <password> '<simplesearchexpression>'");
+if (6 !== process.argv.length || "'" === process.argv[5] || "'" !== process.argv[5][0] || "'" !== process.argv[5][process.argv[5].length - 1]) {
+    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + " <apidomain> <httpbasicauthstring> <orchestrationserviceversion> <realm> '<simplesearchexpression>'");
 } else {
     var apiDomain = process.argv[2];
+    var httpBasicAuthString = process.argv[3];
     var orchestrationServiceVersion = process.argv[3];
     var realm = process.argv[4];
-    var username = process.argv[5];
-    var password = process.argv[6];
-    var rawSearchExpression = process.argv[7].substring(1, process.argv[7].length - 1);
+    var rawSearchExpression = process.argv[5].substring(1, process.argv[5].length - 1);
 
     var orchestrationServiceType = 'avid.orchestration.ctc';
     var registryServiceVersion = '0';
@@ -145,9 +144,9 @@ if (8 !== process.argv.length || "'" === process.argv[7] || "'" !== process.argv
         .getAuthEndpoint(null, apiDomain).catch(PlatformTools.failAndExit)
         .then(function(it) {return PlatformTools.getIdentityProviders(it);}, PlatformTools.failAndExit)
         .then(function(it) {
-            return PlatformTools.authorize(it, apiDomain, username, password);
+            return PlatformTools.authorize(it, apiDomain, httpBasicAuthString);
         }, PlatformTools.failAndExit)
-        .then(function(options) {return PlatformTools.findInRegistry(options, apiDomain, [orchestrationServiceType], registryServiceVersion, 'orchestration:process-query', defaultOrchestrationUriTemplate);}, PlatformTools.failAndExit)
+        .then(function(options) {return PlatformTools.findInRegistry(options, apiDomain, [orchestrationServiceType], registryServiceVersion, 'orchestration:process-query', defaultOrchestrationUriTemplate, realm);}, PlatformTools.failAndExit)
         .then(function(it) {
             var options = it.options;
             var urlUntemplatedProcessQuery = it.UriTemplates[0];

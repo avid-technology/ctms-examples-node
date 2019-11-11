@@ -14,8 +14,8 @@
 
 var https = require('https');
 // Set httpsProxyAgent to enable proxying of requests:
-var HttpsProxyAgent = require('https-proxy-agent');
-var httpsProxyAgent = null;//new HttpsProxyAgent('http://127.0.0.1:8888');
+//var HttpsProxyAgent = require('https-proxy-agent');
+var httpsProxyAgent = null; //new HttpsProxyAgent('http://127.0.0.1:8888');
 
 var sessionRefresher;
 
@@ -139,112 +139,124 @@ var getIdentityProviders = function(lastResult) {
 };
 
 /**
- * Promises MC|UX-based authorization with the passed identity providers HAL resource.
+ * Promises OAuth2-based authorization (HTTP Basic Auth String) with the passed identity providers HAL resource.
  *
  * @param {Object} lastResult valid options for the next HTTP request against the platform and a response containing the
  *          identity providers resource
  * @param apiDomain address to get "auth"
- * @param username  MC|UX login
- * @param password  MC|UX password
+ * @param httpBasicAuthString HTTP basic Auth String
  * @return {Promise} promising authorization {options} containing valid options for the next HTTP request against the
  *          platform
  */
-var authorize = function(lastResult, apiDomain, username, password) {
+var authorize = function(lastResult, apiDomain, httpBasicAuthString) {
     var deferred = Promise.defer();
 
     var identityProviders = lastResult.response._embedded['auth:identity-provider'];
     var urlAuthorization;
     for(var i = 0; i < identityProviders.length; ++i) {
-        if('mcux' === identityProviders[i]['kind']) {
-            var logins = identityProviders[i]['_links']['auth-mcux:login'];
-            urlAuthorization = logins.length ? logins[0]['href'] : undefined;
-            break;
+        if('oauth' === identityProviders[i]['kind']) {
+            var logins = identityProviders[i]['_links']['auth:ropc-default'];
+			if(logins != undefined) {
+				urlAuthorization = logins.length ? logins[0]['href'] : undefined;
+				break;
+			}
         }
     }
+	
+	var authorizationContent = 'grant_type=client_credentials&scope=openid';
+    var authorizationDefaultToken = 'Basic ' + httpBasicAuthString;
 
-    if(urlAuthorization) {
-        var authorizationContent = '{"username" : "' + username + '", "password" : "' + password + '"}';
-        var loginOptions = {
-            'host'      : lastResult.options.host
-            , 'path'    : urlAuthorization
-            , 'method'  : 'POST'
-            , 'headers' : {
-                'Content-Type'  : 'application/json'
-                , 'Accept'      : 'application/json'
-            }
-            , 'agent' : httpsProxyAgent
-        };
-        var loginRequest = https.request(loginOptions, onLoginRequestResponded)
-            .setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout);
-        function onLoginRequestResponded(loginResponse) {
-            if(303 === loginResponse.statusCode || 200 === loginResponse.statusCode) {
-                var allCookies = '';
-                var cookieHeaderFieldValue;
+    var loginOptions = {
+		'host'      : lastResult.options.host
+		, 'path'    : urlAuthorization
+		, 'method'  : 'POST'
+		, 'headers' : {
+			'Content-Type'      : 'application/x-www-form-urlencoded'
+			, 'Authorization'   : authorizationDefaultToken
+			, 'Accept'          : 'application/json'
+		}
+		, 'agent' : httpsProxyAgent
+	};
+	
+	var loginRequest = https.request(loginOptions, onLoginRequestResponded)
+		.setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout);
+		
+	function onLoginRequestResponded(loginResponse) {
+		if (303 === loginResponse.statusCode || 200 === loginResponse.statusCode) {
+			var body = [];
+			loginResponse.on('data', function onDataChunk(data) {
+				body.push(data);
+			});
+			loginResponse.on('end', onLoginResultData);
 
-                for(var p in loginResponse.headers) {
-                    if (loginResponse.headers.hasOwnProperty(p) && 'set-cookie' === p.toLowerCase()) {
-                        cookieHeaderFieldValue = loginResponse.headers[p];
-                        break;
-                    }
-                }
+			function onLoginResultData() {
+				var loginResult = JSON.parse(Buffer.concat(body).toString());
+				var idToken = loginResult.id_token ? loginResult.id_token : loginResult.access_token;
+                var accessTokenHeaderFieldValue = 'Bearer ' + idToken;
 
-                for(var i = 0; i < cookieHeaderFieldValue.length; ++i) {
-                    allCookies += cookieHeaderFieldValue[i]+';';
-                }
-                lastResult.options.headers = lastResult.options.headers ? lastResult.options.headers : {};
-                lastResult.options.headers['Cookie'] = allCookies;
+				lastResult.options.headers = lastResult.options.headers ? lastResult.options.headers : {};
+				lastResult.options.headers['Authorization'] = accessTokenHeaderFieldValue;
 
-                var refreshPeriodMilliseconds = 120000;
-                sessionRefresher
-                    = setInterval(function sessionKeepAlive() {
-                        // TODO: this is a workaround, see {CORE-7359}. In future the access token prolongation API should be used.
-                        var urlPing = 'https://'+apiDomain+'/api/middleware/service/ping';
-                        var pingOptions = {
-                            'host'      : lastResult.options.host
-                            , 'path'    : urlPing
-                            , 'headers' : {
-                                'Content-Type'  : 'application/json'
-                                , 'Accept'      : 'application/json'
-                                , 'Cookie'      : allCookies
-                            }
-                            , 'agent' : httpsProxyAgent
-                        };
-                        https.get(pingOptions, undefined)
-                            .setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout);
-                    }
-                    , refreshPeriodMilliseconds);
-                deferred.resolve(lastResult.options);
-            } else {
-                console.log("Authorization request failed with '" + loginResponse.statusMessage + "'");
-                deferred.reject();
-            }
-        }
-        loginRequest.write(authorizationContent);
-        loginRequest.end();
-    } else {
-        deferred.reject();
-    }
+				var refreshPeriodMilliseconds = 120000;
+				sessionRefresher
+					= setInterval(function sessionKeepAlive() {
+                        getAuthEndpoint(lastResult.options, apiDomain).catch(failAndExit)
+                        .then(function(it) {
+                            return getCurrentToken(it);
+                         }, failAndExit)
+                        .then(function (it) {
+                            var urlPing = it.response._links["auth-token:extend"][0]["href"];
+                            var pingOptions = {
+                                'host'      : it.options.host
+                                , 'path'    : urlPing
+                                , 'method'  : 'POST'
+                                , 'headers' : {
+                                    'Content-Type'      : 'application/json'
+                                    , 'Accept'          : 'application/json'
+                                    , 'Authorization'   : it.options.headers.Authorization
+                                }
+                                , 'agent' : httpsProxyAgent
+                            };
 
-    return deferred.promise;
+                            https
+                                .request(pingOptions, undefined)
+                                .setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout)
+                                .end();
+                        });}, refreshPeriodMilliseconds);
+				deferred.resolve(lastResult.options);
+			} 
+		} 
+		else {
+			console.log("Authorization request failed with '" + loginResponse.statusMessage + "'");
+			deferred.reject();
+		}
+	}
+	
+	loginRequest.write(authorizationContent);
+	loginRequest.end();
+	
+	return deferred.promise;
 };
+
 
 /**
  * Promises the results of the CTMS Registry lookup or promises the default URI for the resource in question.
  *
  * @param {Object} lastOptions valid options for the next HTTP request against the platform
  * @param apiDomain address to access the CTMS Registry
- * @param {Array} serviceTypes array of service types, of which the resource in question should be looked up in the CTMS
- *          Registry
+ * @param {Array} serviceTypes the service types, for which the resource in question should be looked up in the CTMS
+ *          Registry (currently ignored)
  * @param {String} registryServiceVersion version of the CTMS Registry to query
  * @param {String} resourceName resource to look up in the CTMS Registry, such as "search:simple-search"
  * @param {String} orDefaultUriTemplate URI template which will be returned in the promise, if the CTMS Registry is
  *          unreachable or the resource in question cannot be found
+ * @param {String} realm the preferred realm of the resource to be found in the registry
  * @return {Promise} promising {"options": options, "UriTemplates": uriTemplates} containing valid options for the next
  *          HTTP request against the platform and an array containing URI templates, under which the queried resource
  *          can be found. If the CTMS Registry is unreachable or the resource in question cannot be found, the array of
  *          URI templates will contain the orDefaultUriTemplate as single entry.
  */
-var findInRegistry = function(lastOptions, apiDomain, serviceTypes, registryServiceVersion, resourceName, orDefaultUriTemplate) {
+var findInRegistry = function(lastOptions, apiDomain, serviceTypes, registryServiceVersion, resourceName, orDefaultUriTemplate, realm) {
     var deferred = Promise.defer();
 
     lastOptions.path = 'https://' + apiDomain + '/apis/avid.ctms.registry;version=' + registryServiceVersion + '/serviceroots';
@@ -262,48 +274,30 @@ var findInRegistry = function(lastOptions, apiDomain, serviceTypes, registryServ
             });
             function onServiceRootsResultData() {
                 var serviceRootsResult = JSON.parse(Buffer.concat(body).toString());
-
                 var resources = serviceRootsResult['resources'];
                 if (resources) {
                     var theOneResource = resources[resourceName];
                     if (theOneResource) {
-                        var foundUriTemplates = [];
-
                         if (theOneResource.length) {
-                            theOneResource.forEach(function(it) {
-                                var href = it['href'];
-                                serviceTypes.forEach(
-                                    function(it2) {
-                                        if (0 >= it2.indexOf(href)) {
-                                            foundUriTemplates.push(href);
-                                        }
-                                    }
-                                )
-                            });
-
-                            if (!foundUriTemplates.length) {
-                                console.log(resourceName + ' not registered, defaulting to the specified URI template');
-                                deferred.resolve({"options": lastOptions, "UriTemplates": [orDefaultUriTemplate] });
-                            } else {
-                                deferred.resolve({"options": lastOptions,  "UriTemplates": foundUriTemplates});
+                            var candidateSystemIds = [];
+                            for (var i = 0; i < theOneResource.length; ++i) {
+                                candidateSystemIds = candidateSystemIds.concat({"resource": theOneResource[i], "systemIDs": theOneResource[i].systems.map(function(it) {return it.systemID;})});
                             }
+
+                            var effectiveRealm = realm;
+                            var effectiveHref;
+                            var candidateResources = candidateSystemIds.filter(function(it) { return 0 <= it.systemIDs.indexOf(realm);});
+                            if (0 === candidateResources.length) {
+                                effectiveHref = candidateSystemIds[0] ? candidateSystemIds[0].resource.href : orDefaultUriTemplate;
+                                console.log("'" + resourceName + "' was not available on realm " + realm + ". Falling back to " + effectiveHref + ".");
+                            } else {
+                                effectiveHref = candidateResources[0].resource.href;
+                            }
+
+                            deferred.resolve({"options": lastOptions,  "UriTemplates": [effectiveHref]});
                         } else {
-                            var href = theOneResource['href'];
-
-                            serviceTypes.forEach(
-                                function(it2) {
-                                    if (0 >= it2.indexOf(href)) {
-                                        foundUriTemplates.push(href);
-                                    }
-                                }
-                            );
-
-                            if (foundUriTemplates.length) {
-                                deferred.resolve({"options": lastOptions,  "UriTemplates": foundUriTemplates});
-                            } else {
-                                console.log(resourceName + ' not registered, defaulting to the specified URI template');
-                                deferred.resolve({"options": lastOptions, "UriTemplates": [orDefaultUriTemplate] });
-                            }
+                            console.log(resourceName + ' not registered, defaulting to the specified URI template');
+                            deferred.resolve({"options": lastOptions, "UriTemplates": [orDefaultUriTemplate] });
                         }
                     } else {
                         console.log(resourceName + ' not registered, defaulting to the specified URI template');
@@ -313,7 +307,6 @@ var findInRegistry = function(lastOptions, apiDomain, serviceTypes, registryServ
                     console.log('no registered resources found, defaulting to the specified default URI template');
                     deferred.resolve({"options": lastOptions, "UriTemplates": [orDefaultUriTemplate] });
                 }
-
             }
         } else {
             console.log('CTMS Registry not reachable (request failed), defaulting to the specified URI template');
@@ -389,7 +382,7 @@ var removeToken = function(lastResult) {
         , 'headers' : {
             'Content-Type'  : 'application/json'
             , 'Accept'      : 'application/json'
-            , 'Cookie'      : lastResult.options.headers['Cookie']
+            , 'Authorization': lastResult.options.headers.Authorization
         }
         , 'agent' : httpsProxyAgent
     };

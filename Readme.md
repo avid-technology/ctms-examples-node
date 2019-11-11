@@ -18,19 +18,19 @@
 * Running the examples:
     * Install Node.js v4.4.5.
     * Install the above enumerated dependent Node.js modules via npm.
-    * => When running the scripts on a terminal, make sure you have specified correct command line arguments: node _script_.js _apidomain_ _[servicetype]_ _[serviceversion]_ _[realm]_ _username_ _password_ '_[searchexpression]_' [_advancedsearchdescriptionfilename_]
+    * => When running the scripts on a terminal, make sure you have specified correct command line arguments: node _script_.js _apidomain_ _httpbasicauthstring_ _[servicetype]_ _[serviceversion]_ _[realm]_ '_[searchexpression]_' [_advancedsearchdescriptionfilename_]
     * The Orchestration examples do not accept a servicetype parameter, their servicetype is always "avid.orchestration.ctc".
     * The SimpleSearch and QueryProcesses examples await the searchexpression in single quotes as last argument:
-        * node simplesearch.js _apidomain_ _servicetype_ _realm_ _username_ _password_ '_searchexpression_'
-        * Example: node simplesearch.js upstream avid.mam.assets.access BEEF Administrator ABRAXAS "'*'"
-        * node queryprocesses.js _apidomain_ _realm_ _username_ _password_ '_searchexpression_'
-        * Example: node queryprocesses.js upstream BEEF Administrator ABRAXAS "'*'"
+        * node simplesearch.js _apidomain_ _httpbasicauthstring_ _servicetype_ _realm_ '_searchexpression_'
+        * Example: node simplesearch.js upstream httpbasicauthstring avid.mam.assets.access BEEF "'*'"
+        * node queryprocesses.js _apidomain_ _httpbasicauthstring_ _realm_ '_searchexpression_'
+        * Example: node queryprocesses.js upstream httpbasicauthstring BEEF "'*'"
     * The AdvancedSearch example awaits the file name of a file containing the advanced search description as last argument:
-        * node advancedSearch.js _apidomain_ _servicetype_ _realm_ _username_ _password_ _advancedsearchdescriptionfilename_
-        * Example: advancedSearch.js upstream avid.mam.assets.access BEEF Administrator ABRAXAS Resources\MAMAdvancedSearchDescription.txt
+        * node advancedSearch.js _apidomain_ _httpbasicauthstring_ _servicetype_ _realm_ _advancedsearchdescriptionfilename_
+        * Example: advancedSearch.js upstream httpbasicauthstring avid.mam.assets.access BEEF Resources\MAMAdvancedSearchDescription.txt
     * The queryserviceregistry example needs no servicetype (always "avid.ctms.registry") and no realm (always "global"/"") argument. __The registry is not yet part of the release, therefor it must be assured, that the "avid.ctms.registry" service is running on the platform instance in question.__
-        * node queryserviceregistry.js _apidomain_ _username_ _password_
-        * Example: queryserviceregistry.js upstream Administrator ABRAXAS
+        * node queryserviceregistry.js _apidomain_ _httpbasicauthstring_
+        * Example: queryserviceregistry.js upstream httpbasicauthstring
     * Optionally, e.g. for debugging purposes, the Node.js module 'https-proxy-agent' can be installed to configure a proxy agent for outgoing requests, respective sections in 'PlatformTools.js' can just be uncommented.
         * Notice, that using a proxy can reduce the performance of HTTP requests.
         * Notice also, that having set proxy options as shown above while *no proxy* is configured can reduce the performance of HTTP requests by an order of magnitude!

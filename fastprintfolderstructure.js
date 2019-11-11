@@ -179,7 +179,7 @@ var getRootItem = function(options, urlLocations) {
     https.get(options, onLocationsRequestResponded)
         .setTimeout(PlatformTools.getDefaultRequestTimeoutms(), PlatformTools.onRequestTimeout);
     function onLocationsRequestResponded(locationsResponse) {
-        if(200 === locationsResponse.statusCode) {
+        if (200 === locationsResponse.statusCode) {
             var body = [];
             locationsResponse.on('data', function onDataChunk(data) {
                 body.push(data);
@@ -219,15 +219,14 @@ var getRootItem = function(options, urlLocations) {
 };
 
 
-if (8 !== process.argv.length) {
-    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + ' <apidomain> <servicetype> <serviceversion> <realm> <username> <password>');
+if (7 !== process.argv.length) {
+    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + ' <apidomain> <httpbasicauthstring> <servicetype> <serviceversion> <realm>');
 } else {
     var apiDomain = process.argv[2];
-    var serviceType = process.argv[3];
-    var serviceVersion = process.argv[4];
-    var realm = process.argv[5];
-    var username = process.argv[6];
-    var password = process.argv[7];
+    var httpBasicAuthString = process.argv[3];
+    var serviceType = process.argv[4];
+    var serviceVersion = process.argv[5];
+    var realm = process.argv[6];
 
     var registryServiceVersion = '0';
     var defaultLocationsUriTemplate = 'https://' + apiDomain + '/apis/' + serviceType + ';version=' + serviceVersion + ';realm=' + realm + '/locations';
@@ -240,9 +239,9 @@ if (8 !== process.argv.length) {
         .getAuthEndpoint(null, apiDomain).catch(PlatformTools.failAndExit)
         .then(function(it) {return PlatformTools.getIdentityProviders(it);}, PlatformTools.failAndExit)
         .then(function(it) {
-            return PlatformTools.authorize(it, apiDomain, username, password);
+            return PlatformTools.authorize(it, apiDomain, httpBasicAuthString);
         }, PlatformTools.failAndExit)
-        .then(function(options) {return PlatformTools.findInRegistry(options, apiDomain, [serviceType], registryServiceVersion, 'loc:locations', defaultLocationsUriTemplate);}, PlatformTools.failAndExit)
+        .then(function(options) {return PlatformTools.findInRegistry(options, apiDomain, [serviceType], registryServiceVersion, 'loc:locations', defaultLocationsUriTemplate, realm);}, PlatformTools.failAndExit)
         .then(function(it) {
             var urlUntemplatedLocations = it.UriTemplates[0];
             var options = it.options;

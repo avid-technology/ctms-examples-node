@@ -112,7 +112,7 @@ var startProcess = function(options, urlStartProcess) {
         , 'headers' : {
             'Content-Type'  : 'application/json'
             , 'Accept'      : 'application/json'
-            , 'Cookie'      : options.headers['Cookie']
+            , 'Authorization':options.headers.Authorization
         }
         , 'agent'   : options.agent
     };
@@ -120,7 +120,7 @@ var startProcess = function(options, urlStartProcess) {
     var startProcessRequest = https.request(startProcessRequestOptions, onStartProcessRequestResponded)
                                    .setTimeout(PlatformTools.getDefaultRequestTimeoutms(), PlatformTools.onRequestTimeout);
     function onStartProcessRequestResponded(startProcessResponse) {
-        if(303 === startProcessResponse.statusCode || 200 === startProcessResponse.statusCode) {
+        if (303 === startProcessResponse.statusCode || 200 === startProcessResponse.statusCode) {
             var body = [];
             startProcessResponse.on('data', function onDataChunk(data) {
                 body.push(data);
@@ -160,14 +160,13 @@ var startProcess = function(options, urlStartProcess) {
 };
 
 
-if (7 !== process.argv.length) {
-    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + " <apidomain> <orchestrationserviceversion> <realm> <username> <password>");
+if (6 !== process.argv.length) {
+    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + " <apidomain> <httpbasicauthstring> <orchestrationserviceversion> <realm>");
 } else {
     var apiDomain = process.argv[2];
-    var orchestrationServiceVersion = process.argv[3];
-    var realm = process.argv[4];
-    var username = process.argv[5];
-    var password = process.argv[6];
+    var httpBasicAuthString = process.argv[3];
+    var orchestrationServiceVersion = process.argv[4];
+    var realm = process.argv[5];
 
     var orchestrationServiceType = 'avid.orchestration.ctc';
     var registryServiceVersion = '0';
@@ -181,9 +180,9 @@ if (7 !== process.argv.length) {
         .getAuthEndpoint(null, apiDomain).catch(PlatformTools.failAndExit)
         .then(function(it) {return PlatformTools.getIdentityProviders(it);}, PlatformTools.failAndExit)
         .then(function(it) {
-            return PlatformTools.authorize(it, apiDomain, username, password);
+            return PlatformTools.authorize(it, apiDomain, httpBasicAuthString);
         }, PlatformTools.failAndExit)
-        .then(function(options) {return PlatformTools.findInRegistry(options, apiDomain, [orchestrationServiceType], registryServiceVersion, 'orchestration:process', defaultOrchestrationUriTemplate);}, PlatformTools.failAndExit)
+        .then(function(options) {return PlatformTools.findInRegistry(options, apiDomain, [orchestrationServiceType], registryServiceVersion, 'orchestration:process', defaultOrchestrationUriTemplate, realm);}, PlatformTools.failAndExit)
         .then(function(it) {
             var options = it.options;
             var urlUntemplatedStartProcess = it.UriTemplates[0];

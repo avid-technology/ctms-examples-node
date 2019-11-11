@@ -74,16 +74,15 @@ var simpleSearch = function (options, urlSimpleSearch) {
 };
 
 
-if (9 !== process.argv.length || "'" === process.argv[8] || "'" !== process.argv[8][0] || "'" !== process.argv[8][process.argv[8].length - 1]) {
-    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + " <apidomain> <servicetype> <serviceversion> <realm> <username> <password> '<simplesearchexpression>'");
+if (8 !== process.argv.length || "'" === process.argv[7] || "'" !== process.argv[7][0] || "'" !== process.argv[7][process.argv[7].length - 1]) {
+    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + " <apidomain> <httpbasicauthstring> <servicetype> <serviceversion> <realm> '<simplesearchexpression>'");
 } else {
     var apiDomain = process.argv[2];
-    var serviceType = process.argv[3];
-    var serviceVersion = process.argv[4];
-    var realm = process.argv[5];
-    var username = process.argv[6];
-    var password = process.argv[7];
-    var rawSearchExpression = process.argv[8].substring(1, process.argv[8].length - 1);
+    var httpBasicAuthString = process.argv[3];
+    var serviceType = process.argv[4];
+    var serviceVersion = process.argv[5];
+    var realm = process.argv[6];
+    var rawSearchExpression = process.argv[7].substring(1, process.argv[7].length - 1);
 
     var registryServiceVersion = '0';
     var defaultSimpleSearchUriTemplate = 'https://' + apiDomain + '/apis/' + serviceType + ';version=' + serviceVersion + ';realm=' + realm + '/searches/simple?search={search}{&offset,limit,sort}';
@@ -96,13 +95,14 @@ if (9 !== process.argv.length || "'" === process.argv[8] || "'" !== process.argv
         .getAuthEndpoint(null, apiDomain).catch(PlatformTools.failAndExit)
         .then(function(it) {return PlatformTools.getIdentityProviders(it);}, PlatformTools.failAndExit)
         .then(function(it) {
-            return PlatformTools.authorize(it, apiDomain, username, password);
+            return PlatformTools.authorize(it, apiDomain, httpBasicAuthString);
         }, PlatformTools.failAndExit)
-        .then(function(options) {return PlatformTools.findInRegistry(options, apiDomain, [serviceType], registryServiceVersion, 'search:simple-search', defaultSimpleSearchUriTemplate);}, PlatformTools.failAndExit)
+        .then(function(options) {return PlatformTools.findInRegistry(options, apiDomain, serviceType, registryServiceVersion, 'search:simple-search', defaultSimpleSearchUriTemplate, realm);}, PlatformTools.failAndExit)
         //.then(function(options) {return {"options" : options, "UriTemplates" : [defaultSimpleSearchUriTemplate]};}, PlatformTools.failAndExit) // for debugging purposes
         .then(function(it) {
-            var urlUntemplatedSearch = it.UriTemplates[0];
+            var urlUntemplatedSearch= it.UriTemplates[0];
             urlUntemplatedSearch = urlUntemplatedSearch.substring(0, urlUntemplatedSearch.lastIndexOf('=') + 1);
+
             var searchExpression = encodeURIComponent(rawSearchExpression);
             var urlSimpleSearchResultPageURL = urlUntemplatedSearch + searchExpression;
             return simpleSearch(it.options, urlSimpleSearchResultPageURL);

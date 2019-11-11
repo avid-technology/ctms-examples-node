@@ -95,12 +95,11 @@ var queryRegistry = function(options, apiDomain) {
 };
 
 
-if (5 !== process.argv.length) {
-    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + " <apidomain> <username> <password>");
+if (4 !== process.argv.length) {
+    console.log('Usage: ' + process.argv[0] + ' ' + process.argv[1] + " <apidomain> <httpbasicauthstring>");
 } else {
     var apiDomain = process.argv[2];
-    var username = process.argv[3];
-    var password = process.argv[4];
+    var httpBasicAuthString = process.argv[3];
 
 
     // Enable tolerant server certificate validation:
@@ -110,7 +109,7 @@ if (5 !== process.argv.length) {
         .getAuthEndpoint(null, apiDomain)
         .then(function(it) {return PlatformTools.getIdentityProviders(it);}, PlatformTools.failAndExit)
         .then(function(it) {
-            return PlatformTools.authorize(it, apiDomain, username, password);
+            return PlatformTools.authorize(it, apiDomain, httpBasicAuthString);
         }, PlatformTools.failAndExit)
         .then(function(options) {return queryRegistry(options, apiDomain);}, PlatformTools.failAndExit)
         .then(function(it) {
