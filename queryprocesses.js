@@ -73,7 +73,9 @@ var queryProcesses = function(options, urlProcessQuery, rawSearchExpression) {
         }
         , 'agent'   : options.agent
     };
-
+    if (PlatformTools.getAccessToken()) {
+        processQueryRequestOptions.headers.Cookie = 'avidAccessToken='+PlatformTools.getAccessToken();
+    }
     var processQueryRequest = https.request(processQueryRequestOptions, onProcessQueryRequestResponded)
         .setTimeout(PlatformTools.getDefaultRequestTimeoutms(), PlatformTools.onRequestTimeout);
     function onProcessQueryRequestResponded(processQueryResponse) {

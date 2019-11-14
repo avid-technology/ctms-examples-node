@@ -75,6 +75,9 @@ var traverse = function(options, rootItem, depth) {
     var results = [];
 
     options.path = rootItem.href.replace(new RegExp(' ', 'g'), '%20');
+    if (PlatformTools.getAccessToken()) {
+        options.headers.Cookie = 'avidAccessToken='+PlatformTools.getAccessToken();
+    }
     https.get(options, onItemRequestResponded)
         .setTimeout(PlatformTools.getDefaultRequestTimeoutms(), PlatformTools.onRequestTimeout);
     function onItemRequestResponded(itemResponse) {
@@ -176,6 +179,9 @@ var getRootItem = function(options, urlLocations) {
 
     /// Check presence of the locations resource and continue with HATEOAS:
     options.path = urlLocations;
+    if (PlatformTools.getAccessToken()) {
+        options.headers.Cookie = 'avidAccessToken='+PlatformTools.getAccessToken();
+    }
     https.get(options, onLocationsRequestResponded)
         .setTimeout(PlatformTools.getDefaultRequestTimeoutms(), PlatformTools.onRequestTimeout);
     function onLocationsRequestResponded(locationsResponse) {

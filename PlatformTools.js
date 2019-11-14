@@ -74,6 +74,9 @@ var getAuthEndpoint = function(lastOptions, apiDomain) {
                 , 'agent' : httpsProxyAgent
             };
     options.path = '/auth';
+    if (lastAccessToken) {
+        options.headers.Cookie = 'avidAccessToken='+lastAccessToken;
+    }
 
     https.get(options, onAuthRequestResponded)
         .setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout);
@@ -112,6 +115,10 @@ var getIdentityProviders = function(lastResult) {
     var deferred = Promise.defer();
 
     lastResult.options.path = lastResult.response._links['auth:identity-providers'][0].href;
+    if (lastAccessToken) {
+        lastResult.options.headers.Cookie = 'avidAccessToken='+lastAccessToken;
+    }
+
     https.get(lastResult.options, onIdentityProvidersRequestResponded)
         .setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout);
     function onIdentityProvidersRequestResponded(identityProvidersResponse) {
@@ -137,6 +144,12 @@ var getIdentityProviders = function(lastResult) {
     }
     return deferred.promise;
 };
+
+var lastAccessToken;
+var getAccessToken = function() {
+    return lastAccessToken;
+};
+
 
 /**
  * Promises OAuth2-based authorization (HTTP Basic Auth String) with the passed identity providers HAL resource.
@@ -206,6 +219,7 @@ var authorize = function(lastResult, apiDomain, httpBasicAuthString) {
                          }, failAndExit)
                         .then(function (it) {
                             var urlPing = it.response._links["auth-token:extend"][0]["href"];
+                            lastAccessToken = it.response.accessToken;
                             var pingOptions = {
                                 'host'      : it.options.host
                                 , 'path'    : urlPing
@@ -214,6 +228,7 @@ var authorize = function(lastResult, apiDomain, httpBasicAuthString) {
                                     'Content-Type'      : 'application/json'
                                     , 'Accept'          : 'application/json'
                                     , 'Authorization'   : it.options.headers.Authorization
+                                    , 'Cookie'          : 'avidAccessToken='+lastAccessToken
                                 }
                                 , 'agent' : httpsProxyAgent
                             };
@@ -260,6 +275,10 @@ var findInRegistry = function(lastOptions, apiDomain, serviceTypes, registryServ
     var deferred = Promise.defer();
 
     lastOptions.path = 'https://' + apiDomain + '/apis/avid.ctms.registry;version=' + registryServiceVersion + '/serviceroots';
+    if (lastAccessToken) {
+        lastOtions.headers.Cookie = 'avidAccessToken='+lastAccessToken;
+    }
+
     https.get(lastOptions, onServiceRootsRequestResponded)
         .setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout);
     function onServiceRootsRequestResponded(serviceRootsTokenResponse) {
@@ -339,6 +358,9 @@ var getCurrentToken = function(lastResult) {
     }
 
     lastResult.options.path = urlCurrentToken;
+    if (lastAccessToken) {
+        lastResult.options.headers.Cookie = 'avidAccessToken='+lastAccessToken;
+    }
     https.get(lastResult.options, onCurrentTokenRequestResponded)
         .setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout);
     function onCurrentTokenRequestResponded(currentTokenResponse) {
@@ -380,12 +402,15 @@ var removeToken = function(lastResult) {
         , 'path'    : lastResult.response._links['auth-token:removal'][0].href
         , 'method'  : 'DELETE'
         , 'headers' : {
-            'Content-Type'  : 'application/json'
-            , 'Accept'      : 'application/json'
-            , 'Authorization': lastResult.options.headers.Authorization
+            'Content-Type'      : 'application/json'
+            , 'Accept'          : 'application/json'
+            , 'Authorization'   : lastResult.options.headers.Authorization
         }
         , 'agent' : httpsProxyAgent
     };
+    if (lastAccessToken) {
+        options.headers.Cookie = 'avidAccessToken='+lastAccessToken;
+    }
     https.get(removeTokenOptions, onRemoveTokenRequestResponded)
         .setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout);
     function onRemoveTokenRequestResponded(removeTokenResponse) {
@@ -427,6 +452,9 @@ var pageThroughResults = function(options, urlResultPage) {
     var pages = [];
     // TODO: the extra replacement is required for PAM and acts as temp. fix.
     options.path = urlResultPage.replace(new RegExp(' ', 'g'), '%20');
+    if (lastAccessToken) {
+        options.headers.Cookie = 'avidAccessToken='+lastAccessToken;
+    }
     https.get(options, onNextPageRequestResponded)
          .setTimeout(getDefaultRequestTimeoutms(), onRequestTimeout);
     function onNextPageRequestResponded(pageResponse) {
@@ -503,3 +531,4 @@ module.exports.getDefaultRequestTimeoutms = getDefaultRequestTimeoutms;
 module.exports.removeUTF8BOM = removeUTF8BOM;
 module.exports.pageThroughResults = pageThroughResults;
 module.exports.failAndExit = failAndExit;
+module.exports.getAccessToken = getAccessToken;

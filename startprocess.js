@@ -25,6 +25,9 @@ var monitorProcess = function(options, urlStartedProcess) {
     var deferred = Promise.defer();
 
     options.path = urlStartedProcess;
+    if (PlatformTools.getAccessToken()) {
+        options.headers.Cookie = 'avidAccessToken='+PlatformTools.getAccessToken();
+    }
     https.get(options, onStartedProcessRequestResponded)
          .setTimeout(PlatformTools.getDefaultRequestTimeoutms(), PlatformTools.onRequestTimeout);
     function onStartedProcessRequestResponded(startedProcessResponse) {

@@ -70,6 +70,9 @@ var queryRegistry = function(options, apiDomain) {
     /// Check, whether the service registry is available:
     var registryURL = 'https://'+apiDomain+'/apis/'+registryServiceType+';version=0/serviceroots';
     options.path = registryURL;
+    if (PlatformTools.getAccessToken()) {
+        options.headers.Cookie = 'avidAccessToken='+PlatformTools.getAccessToken();
+    }
     https.get(options, onServiceRootsRequestResponded)
         .setTimeout(PlatformTools.getDefaultRequestTimeoutms(), PlatformTools.onRequestTimeout);
     function onServiceRootsRequestResponded(serviceRootsResponse) {

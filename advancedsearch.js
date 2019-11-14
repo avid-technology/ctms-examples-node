@@ -91,6 +91,9 @@ var advancedSearch = function(options, urlAdvancedSearch, advancedSearchDescript
 
     /// Check presence of the searches resource and continue with HATEOAS:
     options.path = urlAdvancedSearch;
+    if (PlatformTools.getAccessToken()) {
+        options.headers.Cookie = 'avidAccessToken='+PlatformTools.getAccessToken();
+    }
     https.get(options, onSearchesRequestResponded)
         .setTimeout(PlatformTools.getDefaultRequestTimeoutms(), PlatformTools.onRequestTimeout);
     function onSearchesRequestResponded(searchesResponse) {
@@ -118,12 +121,16 @@ var advancedSearch = function(options, urlAdvancedSearch, advancedSearchDescript
                         , 'path'    : urlUntemplatedAdvancedSearch
                         , 'method'  : 'POST'
                         , 'headers' : {
-                            'Content-Type'  : 'application/json'
-                            , 'Accept'      : 'application/json'
-                            , 'Authorization' : options.headers.Authorization
+                            'Content-Type'      : 'application/json'
+                            , 'Accept'          : 'application/json'
+                            , 'Authorization'   : options.headers.Authorization
                         }
                         , 'agent'   : options.agent
                     };
+
+                    if (options.headers.Cookie) {
+                        advancedSearchOptions.headers.Cookie = options.headers.Cookie;
+                    }
 
                     var advancedSearchRequest = https.request(advancedSearchOptions, onAdvancedSearchRequestResponded)
                         .setTimeout(PlatformTools.getDefaultRequestTimeoutms(), PlatformTools.onRequestTimeout);
