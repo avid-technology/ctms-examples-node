@@ -276,7 +276,7 @@ var findInRegistry = function(lastOptions, apiDomain, serviceTypes, registryServ
 
     lastOptions.path = 'https://' + apiDomain + '/apis/avid.ctms.registry;version=' + registryServiceVersion + '/serviceroots';
     if (lastAccessToken) {
-        lastOtions.headers.Cookie = 'avidAccessToken='+lastAccessToken;
+        lastOptions.headers.Cookie = 'avidAccessToken='+lastAccessToken;
     }
 
     https.get(lastOptions, onServiceRootsRequestResponded)
