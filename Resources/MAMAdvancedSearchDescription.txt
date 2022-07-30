@@ -1,1 +1,0 @@
-﻿"<query version='1.0' firsthit='0' lasthit='99'><objectclasses /><search><attribute name='MAINTITLE'>*</attribute></search></query>"
